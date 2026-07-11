@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>강체 회전 / 케플러 회전 - 애니메이션 및 그래프</title>
+<style>
+  body {
+    font-family: 'Malgun Gothic', sans-serif;
+    background: #0b0e1a;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+    gap: 32px;
+  }
+  h1 { margin: 0; }
+  h2 { color: #ffd166; margin: 0 0 12px 0; text-align: center; }
+  .row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .panel {
+    background: #161a2c;
+    border-radius: 16px;
+    padding: 16px 20px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  }
+  .legend {
+    font-size: 13px;
+    margin-top: 8px;
+    color: #9aa0c0;
+    text-align: center;
+  }
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    justify-content: center;
+  }
+  input[type=range] { width: 220px; }
+  .val { color: #ffd166; min-width: 90px; text-align: left; font-size: 14px; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+
+<h1>강체 회전 vs 케플러 회전</h1>
+
+<!-- ===================== 1. 애니메이션 ===================== -->
+<div class="row">
+  <div class="panel">
+    <h2>강체 회전 (은하 중심부, 0~1kpc)</h2>
+    <canvas id="rigidAnim" width="280" height="280"></canvas>
+    <div class="legend">
+      <span style="color:#5dd6ff;">●</span> 안쪽 점 &nbsp;
+      <span style="color:#7dffb3;">●</span> 중간 점 &nbsp;
+      <span style="color:#ff8a5b;">●</span> 바깥쪽 점
+      <br>같은 시간에 같은 각도로 회전 → 바깥쪽일수록 빨라짐
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>케플러 회전 (1~3kpc)</h2>
+    <canvas id="keplerAnim" width="280" height="280"></canvas>
+    <div class="legend">
+      <span style="color:#5dd6ff;">●</span> 안쪽 (빠름) &nbsp;
+      <span style="color:#ff8a5b;">●</span> 바깥쪽 (느림)
+      <br>중심에서 멀수록 천천히 회전
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 2. 선속도/각속도 그래프 ===================== -->
+<div class="row">
+  <div class="panel">
+    <h2>강체 회전: 선속도 / 각속도</h2>
+    <canvas id="rigidGraph" width="520" height="260"></canvas>
+    <div class="slider-row">
+      <span>거리 r (kpc)</span>
+      <input type="range" id="rigidSlider" min="0.1" max="5" step="0.1" value="0.5">
+      <span class="val" id="rigidVal">r = 0.5</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>케플러 회전: 선속도 / 각속도</h2>
+    <canvas id="keplerGraph" width="520" height="260"></canvas>
+    <div class="slider-row">
+      <span>거리 r (kpc)</span>
+      <input type="range" id="keplerSlider" min="0.3" max="5" step="0.1" value="1">
+      <span class="val" id="keplerVal">r = 1.0</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   1. 강체 회전 애니메이션 (CD판처럼 같은 각속도로 회전)
+   ========================================================= */
+const rigidCanvas = document.getElementById('rigidAnim');
+const rctx = rigidCanvas.getContext('2d');
+const rCenter = { x: 140, y: 140 };
+const rRadii = [40, 80, 120];
+const rColors = ['#5dd6ff', '#7dffb3', '#ff8a5b'];
+let rAngle = 0;
+
+function drawRigid() {
+  rctx.clearRect(0, 0, 280, 280);
+  rctx.fillStyle = '#0e1224';
+  rctx.fillRect(0, 0, 280, 280);
+
+  rctx.strokeStyle = '#333';
+  rctx.lineWidth = 2;
+  rctx.beginPath();
+  rctx.arc(rCenter.x, rCenter.y, 130, 0, Math.PI * 2);
+  rctx.stroke();
+
+  // 중심점
+  rctx.fillStyle = '#fff';
+  rctx.beginPath();
+  rctx.arc(rCenter.x, rCenter.y, 3, 0, Math.PI * 2);
+  rctx.fill();
+
+  const points = rRadii.map(r => [
+    rCenter.x + r * Math.cos(rAngle),
+    rCenter.y + r * Math.sin(rAngle)
+  ]);
+
+  // 점들을 잇는 선 (같은 각도로 같이 회전한다는 것을 보여줌)
+  rctx.strokeStyle = '#666';
+  rctx.lineWidth = 2;
+  rctx.beginPath();
+  rctx.moveTo(points[0][0], points[0][1]);
+  for (let i = 1; i < points.length; i++) rctx.lineTo(points[i][0], points[i][1]);
+  rctx.stroke();
+
+  // 점
+  points.forEach((p, i) => {
+    rctx.fillStyle = rColors[i];
+    rctx.beginPath();
+    rctx.arc(p[0], p[1], 7, 0, Math.PI * 2);
+    rctx.fill();
+  });
+
+  rAngle += 0.03; // 모든 점이 같은 각속도
+  requestAnimationFrame(drawRigid);
+}
+drawRigid();
+
+
+/* =========================================================
+   2. 케플러 회전 애니메이션 (안쪽은 빠르게, 바깥쪽은 느리게)
+   ========================================================= */
+const keplerCanvas = document.getElementById('keplerAnim');
+const kctx = keplerCanvas.getContext('2d');
+const kCenter = { x: 140, y: 140 };
+
+const kBodies = [
+  { r: 50,  speed: 0.06, angle: 0,    color: '#5dd6ff' },
+  { r: 120, speed: 0.06 * Math.pow(50/120, 1.5), angle: Math.PI, color: '#ff8a5b' }
+];
+
+function drawKepler() {
+  kctx.clearRect(0, 0, 280, 280);
+  kctx.fillStyle = '#0e1224';
+  kctx.fillRect(0, 0, 280, 280);
+
+  // 중심 (태양)
+  kctx.fillStyle = '#ffd166';
+  kctx.beginPath();
+  kctx.arc(kCenter.x, kCenter.y, 9, 0, Math.PI * 2);
+  kctx.fill();
+
+  // 궤도 + 천체
+  kBodies.forEach(b => {
+    kctx.strokeStyle = '#444';
+    kctx.setLineDash([4, 4]);
+    kctx.beginPath();
+    kctx.arc(kCenter.x, kCenter.y, b.r, 0, Math.PI * 2);
+    kctx.stroke();
+    kctx.setLineDash([]);
+
+    const x = kCenter.x + b.r * Math.cos(b.angle);
+    const y = kCenter.y + b.r * Math.sin(b.angle);
+
+    kctx.fillStyle = b.color;
+    kctx.beginPath();
+    kctx.arc(x, y, 7, 0, Math.PI * 2);
+    kctx.fill();
+
+    b.angle += b.speed;
+  });
+
+  requestAnimationFrame(drawKepler);
+}
+drawKepler();
+
+
+/* =========================================================
+   3. 강체 회전: 선속도 / 각속도 그래프
+   ========================================================= */
+const k_rigid = 220; // r=1kpc 에서 약 220km/s
+
+const rigidGraph = document.getElementById('rigidGraph');
+const rgctx = rigidGraph.getContext('2d');
+
+function drawGraphAxes(ctx, w, h, margin, xMax, yMax, xLabel, yLabel) {
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#0e1224';
+  ctx.fillRect(0, 0, w, h);
+
+  const plotW = w - margin.left - margin.right;
+  const plotH = h - margin.top - margin.bottom;
+
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(margin.left, margin.top);
+  ctx.lineTo(margin.left, margin.top + plotH);
+  ctx.lineTo(margin.left + plotW, margin.top + plotH);
+  ctx.stroke();
+
+  ctx.fillStyle = '#cfd2e3';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(xLabel, margin.left + plotW / 2, h - 8);
+
+  ctx.save();
+  ctx.translate(14, margin.top + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText(yLabel, 0, 0);
+  ctx.restore();
+
+  return { plotW, plotH };
+}
+
+function plotRigidGraph(r) {
+  const w = 520, h = 260;
+  const margin = { left: 50, right: 200, top: 20, bottom: 30 };
+  const xMax = 5, yMaxV = 1200, yMaxOmega = 320;
+
+  const { plotW, plotH } = drawGraphAxes(rgctx, w, h, margin, xMax, yMaxV, '거리 r (kpc)', '값');
+
+  function toPx(x, y, yMax) {
+    return [
+      margin.left + (x / xMax) * plotW,
+      margin.top + plotH - (y / yMax) * plotH
+    ];
+  }
+
+  // 선속도 곡선: v = k * r
+  rgctx.strokeStyle = '#4da3ff';
+  rgctx.lineWidth = 2;
+  rgctx.beginPath();
+  for (let i = 0; i <= 100; i++) {
+    const x = (i / 100) * xMax;
+    const v = k_rigid * x;
+    const [px, py] = toPx(x, v, yMaxV);
+    if (i === 0) rgctx.moveTo(px, py); else rgctx.lineTo(px, py);
+  }
+  rgctx.stroke();
+
+  // 각속도 곡선: omega = k (일정)
+  rgctx.strokeStyle = '#c77dff';
+  rgctx.lineWidth = 2;
+  rgctx.beginPath();
+  for (let i = 0; i <= 100; i++) {
+    const x = (i / 100) * xMax;
+    const omega = k_rigid;
+    const [px, py] = toPx(x, omega, yMaxOmega);
+    if (i === 0) rgctx.moveTo(px, py); else rgctx.lineTo(px, py);
+  }
+  rgctx.stroke();
+
+  // 현재 위치 점
+  const v = k_rigid * r;
+  const omega = k_rigid;
+  const [vx, vy] = toPx(r, v, yMaxV);
+  const [ox, oy] = toPx(r, omega, yMaxOmega);
+
+  rgctx.fillStyle = '#ff3b3b';
+  rgctx.beginPath(); rgctx.arc(vx, vy, 6, 0, Math.PI*2); rgctx.fill();
+  rgctx.beginPath(); rgctx.arc(ox, oy, 6, 0, Math.PI*2); rgctx.fill();
+
+  // 범례 + 값
+  rgctx.font = '13px sans-serif';
+  rgctx.textAlign = 'left';
+  rgctx.fillStyle = '#4da3ff';
+  rgctx.fillText('선속도 v = k × r', margin.left + plotW + 10, 30);
+  rgctx.fillText(`v = ${v.toFixed(0)} km/s`, margin.left + plotW + 10, 50);
+
+  rgctx.fillStyle = '#c77dff';
+  rgctx.fillText('각속도 ω = 일정', margin.left + plotW + 10, 90);
+  rgctx.fillText(`ω = ${omega.toFixed(0)}`, margin.left + plotW + 10, 110);
+}
+
+
+/* =========================================================
+   4. 케플러 회전: 선속도 / 각속도 그래프
+   ========================================================= */
+const k_kepler = 220;
+
+const keplerGraph = document.getElementById('keplerGraph');
+const kgctx = keplerGraph.getContext('2d');
+
+function plotKeplerGraph(r) {
+  const w = 520, h = 260;
+  const margin = { left: 50, right: 200, top: 20, bottom: 30 };
+  const xMax = 5, yMaxV = 320, yMaxOmega = 250;
+
+  const { plotW, plotH } = drawGraphAxes(kgctx, w, h, margin, xMax, yMaxV, '거리 r (kpc)', '값');
+
+  function toPx(x, y, yMax) {
+    return [
+      margin.left + (x / xMax) * plotW,
+      margin.top + plotH - (y / yMax) * plotH
+    ];
+  }
+
+  // 선속도 곡선: v = k / sqrt(r)
+  kgctx.strokeStyle = '#5dd68a';
+  kgctx.lineWidth = 2;
+  kgctx.beginPath();
+  for (let i = 1; i <= 100; i++) {
+    const x = (i / 100) * xMax;
+    const v = k_kepler / Math.sqrt(Math.max(x, 0.3));
+    const [px, py] = toPx(x, v, yMaxV);
+    if (i === 1) kgctx.moveTo(px, py); else kgctx.lineTo(px, py);
+  }
+  kgctx.stroke();
+
+  // 각속도 곡선: omega = k / r^1.5
+  kgctx.strokeStyle = '#ffb24d';
+  kgctx.lineWidth = 2;
+  kgctx.beginPath();
+  for (let i = 1; i <= 100; i++) {
+    const x = (i / 100) * xMax;
+    const xx = Math.max(x, 0.3);
+    const omega = k_kepler / Math.pow(xx, 1.5);
+    const [px, py] = toPx(x, omega, yMaxOmega);
+    if (i === 1) kgctx.moveTo(px, py); else kgctx.lineTo(px, py);
+  }
+  kgctx.stroke();
+
+  // 현재 위치
+  const v = k_kepler / Math.sqrt(r);
+  const omega = v / r;
+  const [vx, vy] = toPx(r, v, yMaxV);
+  const [ox, oy] = toPx(r, omega, yMaxOmega);
+
+  kgctx.fillStyle = '#ff3b3b';
+  kgctx.beginPath(); kgctx.arc(vx, vy, 6, 0, Math.PI*2); kgctx.fill();
+  kgctx.beginPath(); kgctx.arc(ox, oy, 6, 0, Math.PI*2); kgctx.fill();
+
+  kgctx.font = '13px sans-serif';
+  kgctx.textAlign = 'left';
+  kgctx.fillStyle = '#5dd68a';
+  kgctx.fillText('선속도 v = k / √r', margin.left + plotW + 10, 30);
+  kgctx.fillText(`v = ${v.toFixed(0)} km/s`, margin.left + plotW + 10, 50);
+
+  kgctx.fillStyle = '#ffb24d';
+  kgctx.fillText('각속도 ω = k / r^1.5', margin.left + plotW + 10, 90);
+  kgctx.fillText(`ω = ${omega.toFixed(1)}`, margin.left + plotW + 10, 110);
+}
+
+
+/* =========================================================
+   5. 슬라이더 이벤트 연결
+   ========================================================= */
+const rigidSlider = document.getElementById('rigidSlider');
+const rigidVal = document.getElementById('rigidVal');
+rigidSlider.addEventListener('input', () => {
+  const r = parseFloat(rigidSlider.value);
+  rigidVal.textContent = `r = ${r.toFixed(1)}`;
+  plotRigidGraph(r);
+});
+
+const keplerSlider = document.getElementById('keplerSlider');
+const keplerVal = document.getElementById('keplerVal');
+keplerSlider.addEventListener('input', () => {
+  const r = parseFloat(keplerSlider.value);
+  keplerVal.textContent = `r = ${r.toFixed(1)}`;
+  plotKeplerGraph(r);
+});
+
+// 초기 렌더링
+plotRigidGraph(parseFloat(rigidSlider.value));
+plotKeplerGraph(parseFloat(keplerSlider.value));
+</script>
+
+</body>
+</html>
