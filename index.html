@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>은하 회전 곡선 시뮬레이션</title>
+    <style>
+        body {
+            background-color: #0b0c10;
+            color: #ecf0f1;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #4ed9ff;
+            margin-bottom: 20px;
+        }
+
+        /* 탭 스타일 */
+        .tab-container {
+            display: flex;
+            margin-bottom: 20px;
+            background: #1f2833;
+            padding: 5px;
+            border-radius: 8px;
+            gap: 5px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: #c5a3ff;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            background-color: #4ed9ff;
+            color: #0b0c10;
+            font-weight: bold;
+        }
+
+        /* 시뮬레이션 영역 */
+        .content-area {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            background: #1f2833;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            width: 700px;
+        }
+
+        .content-area.active {
+            display: flex;
+        }
+
+        canvas {
+            background-color: #000000;
+            border: 2px solid #4ed9ff;
+            border-radius: 8px;
+            box-shadow: inset 0 0 20px rgba(78, 217, 255, 0.2);
+        }
+
+        .info-panel {
+            margin-top: 15px;
+            width: 100%;
+            text-align: center;
+            line-height: 1.6;
+            color: #a8b2c1;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            justify-content: center;
+            width: 100%;
+        }
+        .legend-item { display: flex; align-items: center; gap: 5px; font-size: 14px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+    </style>
+</head>
+<body>
+
+    <h1>은하 회전 시뮬레이션 및 그래프</h1>
+
+    <!-- 탭 메뉴 -->
+    <div class="tab-container">
+        <button id="btn-tab1" class="tab-btn active">1. 강체 & 케플러 회전 (각속도/선속도)</button>
+        <button id="btn-tab2" class="tab-btn">2. 우리은하 회전 곡선</button>
+    </div>
+
+    <!-- 탭 1: 강체 회전과 케플러 회전 -->
+    <div id="tab1" class="content-area active">
+        <div class="legend">
+            <div class="legend-item"><span class="dot" style="background: #ff5e57;"></span>강체 회전 (V ∝ r, 각속도 일정)</div>
+            <div class="legend-item"><span class="dot" style="background: #ffdd59;"></span>케플러 회전 (V ∝ 1/√r, 선속도 급감)</div>
+        </div>
+        <canvas id="canvas1" width="650" height="450"></canvas>
+        <div class="info-panel">
+            <strong>강체 회전:</strong> 중심에서 멀어질수록 선속도(V)가 선형적으로 빨라지며, 모든 위치에서 각속도(ω)가 일정합니다.<br>
+            <strong>케플러 회전:</strong> 질량이 중심에 집중되어 중심에서 멀어질수록 선속도(V)와 각속도가 모두 급격히 감소합니다.
+        </div>
+    </div>
+
+    <!-- 탭 2: 우리은하 회전 곡선 -->
+    <div id="tab2" class="content-area">
+        <div class="legend">
+            <div class="legend-item"><span class="dot" style="background: #05c46b;"></span>실제 관측 곡선 (암흑 물질 포함)</div>
+            <div class="legend-item"><span class="dot" style="background: #ffdd59;"></span>예상 케플러 곡선</div>
+        </div>
+        <canvas id="canvas2" width="650" height="450"></canvas>
+        <div class="info-panel">
+            <strong>우리은하의 실제 회전 곡선:</strong> 은하 외곽부로 가도 회전 속도가 떨어지지 않고 유지(평탄화)됩니다.<br>
+            이는 전자기파로 관측되지 않는 거대한 질량을 가진 <strong>암흑 물질(Dark Matter)</strong>이 외곽을 둘러싸고 있음을 보여줍니다.
+        </div>
+    </div>
+
+    <script>
+        // 탭 버튼 이벤트 리스너 연결 (안전하고 확실한 이벤트 바인딩)
+        const btnTab1 = document.getElementById('btn-tab1');
+        const btnTab2 = document.getElementById('btn-tab2');
+        const tab1 = document.getElementById('tab1');
+        const tab2 = document.getElementById('tab2');
+
+        btnTab1.addEventListener('click', function() {
+            btnTab2.classList.remove('active');
+            btnTab1.classList.add('active');
+            tab2.classList.remove('active');
+            tab1.classList.add('active');
+        });
+
+        btnTab2.addEventListener('click', function() {
+            btnTab1.classList.remove('active');
+            btnTab2.classList.add('active');
+            tab1.classList.remove('active');
+            tab2.classList.add('active');
+        });
+
+        // --- 시뮬레이션 구현부 ---
+        const c1 = document.getElementById('canvas1');
+        const ctx1 = c1.getContext('2d');
+        const c2 = document.getElementById('canvas2');
+        const ctx2 = c2.getContext('2d');
+
+        // 첫 번째 탭 캔버스 크기에 맞춘 중심
+        const centerX1 = 325;
+        const centerY1 = 225;
+
+        // 파티클 데이터 생성 함수
+        function createParticles(count) {
+            let pts = [];
+            for (let i = 0; i < count; i++) {
+                let r = Math.random() * 180 + 20; // 반지름 (20 ~ 200)
+                let angle = Math.random() * Math.PI * 2;
+                pts.push({ r: r, angle: angle });
+            }
+            return pts;
+        }
+
+        const rigidParticles = createParticles(80);
+        const keplerParticles = createParticles(80);
+        const galaxyParticles = createParticles(150);
+
+        // --- 애니메이션 루프 ---
+        function animate() {
+            // --- 탭 1 그리기 (강체 & 케플러 회전 비교) ---
+            ctx1.clearRect(0, 0, c1.width, c1.height);
+            
+            // 중심핵
+            ctx1.fillStyle = '#ffffff';
+            ctx1.beginPath(); ctx1.arc(centerX1, centerY1, 6, 0, Math.PI*2); ctx1.fill();
+
+            // 강체 회전 파티클 (각속도 일정)
+            rigidParticles.forEach(p => {
+                p.angle += 0.015; 
+                let x = centerX1 + Math.cos(p.angle) * p.r;
+                let y = centerY1 + Math.sin(p.angle) * p.r;
+                ctx1.fillStyle = '#ff5e57';
+                ctx1.beginPath(); ctx1.arc(x, y, 3, 0, Math.PI*2); ctx1.fill();
+            });
+
+            // 케플러 회전 파티클 (속도 반비례)
+            keplerParticles.forEach(p => {
+                let speed = 0.25 / Math.sqrt(p.r); 
+                p.angle += speed;
+                let x = centerX1 + Math.cos(p.angle) * p.r;
+                let y = centerY1 + Math.sin(p.angle) * p.r;
+                ctx1.fillStyle = '#ffdd59';
+                ctx1.beginPath(); ctx1.arc(x, y, 3, 0, Math.PI*2); ctx1.fill();
+            });
+
+
+            // --- 탭 2 그리기 (우리은하 + 회전 곡선 그래프) ---
+            ctx2.clearRect(0, 0, c2.width, c2.height);
+
+            // 1. 왼쪽에 은하 회전 애니메이션
+            const gCenterX = 200;
+            const gCenterY = 225;
+            ctx2.fillStyle = '#ffffff';
+            ctx2.beginPath(); ctx2.arc(gCenterX, gCenterY, 8, 0, Math.PI*2); ctx2.fill(); 
+
+            galaxyParticles.forEach(p => {
+                // 은하 외곽 속도 유지 모사 (핵심부 통과 후 평탄한 선속도 유지)
+                let speed = p.r < 40 ? 0.001 * p.r : 0.04; 
+                p.angle += speed / p.r; 
+                
+                let x = gCenterX + Math.cos(p.angle) * p.r;
+                let y = gCenterY + Math.sin(p.angle) * p.r;
+                ctx2.fillStyle = '#05c46b';
+                ctx2.beginPath(); ctx2.arc(x, y, 2.5, 0, Math.PI*2); ctx2.fill();
+            });
+
+            // 2. 오른쪽에 회전곡선 그래프 플로팅
+            const graphX = 430, graphY = 320, graphW = 180, graphH = 180;
+            
+            // 축선
+            ctx2.strokeStyle = '#a8b2c1';
+            ctx2.lineWidth = 1.5;
+            ctx2.beginPath();
+            ctx2.moveTo(graphX, graphY - graphH); ctx2.lineTo(graphX, graphY); ctx2.lineTo(graphX + graphW, graphY);
+            ctx2.stroke();
+            
+            ctx2.fillStyle = '#a8b2c1';
+            ctx2.font = '12px Arial';
+            ctx2.fillText("속도(V)", graphX - 45, graphY - graphH + 15);
+            ctx2.fillText("거리(r)", graphX + graphW - 20, graphY + 20);
+
+            // 예상 케플러 곡선 (노란색)
+            ctx2.strokeStyle = '#ffdd59';
+            ctx2.lineWidth = 1.5;
+            ctx2.beginPath();
+            for(let rx = 10; rx < graphW; rx++) {
+                let ry = 40 / Math.sqrt(rx); 
+                if(rx === 10) ctx2.moveTo(graphX + rx, graphY - ry * 8);
+                else ctx2.lineTo(graphX + rx, graphY - ry * 8);
+            }
+            ctx2.stroke();
+
+            // 실제 은하 회전 곡선 (초록색)
+            ctx2.strokeStyle = '#05c46b';
+            ctx2.lineWidth = 2.5;
+            ctx2.beginPath();
+            for(let rx = 0; rx < graphW; rx++) {
+                let ry = rx < 30 ? rx * 1.5 : 45 + Math.sin(rx/20)*3; 
+                if(rx === 0) ctx2.moveTo(graphX + rx, graphY - ry);
+                else ctx2.lineTo(graphX + rx, graphY - ry);
+            }
+            ctx2.stroke();
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
